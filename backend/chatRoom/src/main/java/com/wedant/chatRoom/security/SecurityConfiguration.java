@@ -33,10 +33,10 @@ public class SecurityConfiguration {
     private final UserRepository userRepository;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter){
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
 
-        return http.
-                csrf(csrf -> csrf.disable())
+        return http
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 .authorizeHttpRequests(auth -> auth
@@ -58,32 +58,28 @@ public class SecurityConfiguration {
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization","Content-Type"));
+        configuration.setAllowedHeaders(List.of("*")); // Allow all headers
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**",configuration);
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
     @Bean
     public UserDetailsService userDetailsService(){
-
         return username -> userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 
     @Bean
     public PasswordEncoder passwordEncoder(){
-
         return new BCryptPasswordEncoder();
     }
 
     @Bean
     public UserDetailsPasswordService userDetailsPasswordService(){
-
         return (appUser, password) -> {
             String hashedPassword = passwordEncoder().encode(password);
             User user = (User) appUser;
@@ -96,19 +92,14 @@ public class SecurityConfiguration {
     @Bean
     public DaoAuthenticationProvider authenticationProvider(UserDetailsService userDetailsService,
                                                             PasswordEncoder passwordEncoder){
-
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-
         authProvider.setPasswordEncoder(passwordEncoder());
         authProvider.setUserDetailsPasswordService(userDetailsPasswordService());
-
         return authProvider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception{
-
         return config.getAuthenticationManager();
     }
-
 }
