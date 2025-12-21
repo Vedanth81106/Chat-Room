@@ -19,7 +19,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer{
     public void registerStompEndpoints(StompEndpointRegistry registry){
 
         registry.addEndpoint("/ws")
-        .setAllowedOriginPatterns("http://localhost:5173")//allows react frontend
+        .setAllowedOriginPatterns("*")//allows react frontend
         .withSockJS();
         //sockjs is a library that provides WebSocket-like communication for browsers that dont support WebSocket.
     }
