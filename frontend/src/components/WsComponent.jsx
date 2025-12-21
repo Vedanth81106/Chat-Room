@@ -4,6 +4,8 @@
 
     export default function WsComponent({currentUser, onLoginClick, onLogoutClick}) {
 
+            const BASE_URL = import.meta.env.VITE_API_URL ;
+
         //usememo creates a random username once and caches it so as to prevet a new username on every re render
         const randomUsername = useMemo(() => {
             const adjectives = ["Quick", "Lazy", "Happy", "Sad", "Angry"];
@@ -25,13 +27,13 @@
                 const token = localStorage.getItem("token");
                 const headers = {};
                 if(token) headers["Authorization"] = `Bearer ${token}`
-                const res = await fetch("http://localhost:8080/api/messages", { headers });
+                const res = await fetch(`${BASE_URL}/api/messages`, { headers });
                 const data = await res.json();
                 setMessages(data);
                 };
             fetchHistory();
             
-            const socket = new SockJS('http://localhost:8080/ws');//creates a sockJS connection to the backend server's /ws endpoint
+            const socket = new SockJS(`${BASE_URL}/ws`);//creates a sockJS connection to the backend server's /ws endpoint
             const client = Stomp.over(socket);//create a STOMP connection on top of socksJS
             client.debug = () => {}; // Disable debug logs for cleaner console
             ws.current = client;//store the client in the ref to use it later in sendMessage() fn
