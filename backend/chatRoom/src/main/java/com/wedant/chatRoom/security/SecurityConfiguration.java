@@ -53,13 +53,18 @@ public class SecurityConfiguration {
 
                 .build();
     }
-
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*")); // Allow all headers
+        configuration.setAllowedOrigins(List.of(
+            "https://chat-room-72jgn7gc4-vedanths-projects-31fd993b.vercel.app", 
+            "http://localhost:5173", 
+            "http://localhost:3000" 
+        ));
+
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
