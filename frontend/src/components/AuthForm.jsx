@@ -2,7 +2,7 @@ import { useState } from "react";
 
 export default function AuthForm({ onLoginSuccess }) {
 
-    const BASE_URL = import.meta.env.VITE_API_URL ;
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
     const [isLogin, setIsLogin] = useState(true); // toggle between Login and Register
     const [formData, setFormData] = useState({

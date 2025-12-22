@@ -9,6 +9,8 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
 
+import java.time.LocalDateTime;
+
 @Controller
 @RequiredArgsConstructor
 public class ChatController {
@@ -22,5 +24,11 @@ public class ChatController {
         Message savedMessage = messageService.createMessage(chatRequest.username(), chatRequest.content());
 
         return savedMessage;
+    }
+
+    @MessageMapping("/typing")
+    @SendTo("/topic/typing")
+    public String broadcastTyping(@Payload String username){
+        return username;
     }
 }

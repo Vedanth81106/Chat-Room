@@ -29,17 +29,9 @@ public class Message {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime editedAtTimeStamp;
-
     @PrePersist
     protected void onCreate(){
         this.timestamp = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate(){
-        this.editedAtTimeStamp = LocalDateTime.now();
     }
 
     @ManyToOne

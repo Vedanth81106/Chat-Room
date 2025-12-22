@@ -2,6 +2,7 @@ package com.wedant.chatRoom.controllers;
 
 import com.wedant.chatRoom.models.Message;
 import com.wedant.chatRoom.repositories.MessageRepository;
+import com.wedant.chatRoom.services.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,10 +15,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MessageController {
 
-    private final MessageRepository messageRepository;
+    private final MessageService messageService;
 
     @GetMapping
     public List<Message> getChatHistory(){
-        return messageRepository.findAll();
+        return messageService.getAllMessages();
     }
 }

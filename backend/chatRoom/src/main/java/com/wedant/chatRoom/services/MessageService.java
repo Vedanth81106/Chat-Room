@@ -66,6 +66,7 @@ public class MessageService {
                 .orElseThrow(() -> new RuntimeException("Could not find message!!"));
 
         message.setContent(content);
+        message.setTimestamp(LocalDateTime.now());
         messageRepository.save(message);
 
         return message;
