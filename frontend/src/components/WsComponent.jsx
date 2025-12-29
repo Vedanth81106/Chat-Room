@@ -5,8 +5,9 @@ import Stomp from 'stompjs';
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
+import UserList from "./UserList";
 
-export default function WsComponent({currentUser, onLoginClick, onLogoutClick}) {
+export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }) {
     const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
     const randomUsername = useMemo(() => {
@@ -23,35 +24,53 @@ export default function WsComponent({currentUser, onLoginClick, onLogoutClick}) 
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [typingUser, setTypingUser] = useState("");
-    
+    const [recipient, setRecipient] = useState(null);
+    const [contacts, setContacts] = useState([]);
+
     const chatEndRef = useRef(null);
     const ws = useRef(null);
 
-    // --- WebSocket Logic ---
     useEffect(() => {
-        const fetchHistory = async() => {
+        const fetchHistory = async () => {
             const token = localStorage.getItem("token");
             const headers = token ? { "Authorization": `Bearer ${token}` } : {};
-            const res = await fetch(`${BASE_URL}/api/messages`, { headers });
-            const data = await res.json();
-            setMessages(data);
+            try {
+                const res = await fetch(`${BASE_URL}/api/messages`, { headers });
+                const data = await res.json();
+                setMessages(data);
+            } catch (err) {
+                console.error(err);
+            }
         };
         fetchHistory();
-        
+
         const socket = new SockJS(`${BASE_URL}/ws`);
         const client = Stomp.over(socket);
-        client.debug = () => {}; 
+        client.debug = () => { }; 
         ws.current = client;
 
-        client.connect({}, function(frame) {
-            client.subscribe('/topic/messages', function(message) {
+        const token = localStorage.getItem("token");
+        const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+
+        client.connect(headers, function (frame) {
+            
+            client.subscribe('/topic/messages', function (message) {
                 const recievedMessage = JSON.parse(message.body);
                 setMessages(prev => [...prev, recievedMessage]);
             });
 
-            client.subscribe('/topic/typing', function(message){
+            client.subscribe('/user/queue/messages', function (message) {
+                const recievedMessage = JSON.parse(message.body);
+                setMessages(prev => [...prev, recievedMessage]);
+                
+                if (recievedMessage.user.username !== currentUserRef.current?.username) {
+                   addToContacts(recievedMessage.user);
+                }
+            });
+
+            client.subscribe('/topic/typing', function (message) {
                 const username = message.body;
-                if(currentUserRef.current && username === currentUserRef.current.username) return;
+                if (currentUserRef.current && username === currentUserRef.current.username) return;
                 setTypingUser(username);
                 setTimeout(() => setTypingUser(null), 3000);
             });
@@ -60,58 +79,120 @@ export default function WsComponent({currentUser, onLoginClick, onLogoutClick}) 
         return () => { if (client) client.disconnect(); };
     }, []);
 
-    // Auto-scroll logic
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+    }, [messages]); 
 
-    // --- Actions ---
+    useEffect(() => {
+        if (currentUser) {
+            const storageKey = `chat_contacts_${currentUser.username}`;
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                setContacts(JSON.parse(saved));
+            } else {
+                setContacts([]);
+            }
+        } else {
+            setContacts([]);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (currentUser && contacts.length > 0) {
+            const storageKey = `chat_contacts_${currentUser.username}`;
+            localStorage.setItem(storageKey, JSON.stringify(contacts));
+        }
+    }, [contacts, currentUser]);
+
+    function addToContacts(user) {
+        if (!user || !user.username) return;
+        setContacts(prev => {
+            const exists = prev.some(u => u.username === user.username);
+            if (exists) return prev;
+            return [...prev, user];
+        });
+    }
+
     function sendMessage(e) {
         if (e) e.preventDefault();
-        if(!currentUser || !ws.current || !input.trim()) return;
+        if (!currentUser || !ws.current || !input.trim()) return;
 
-        const msg = { username: currentUser.username, content: input };
+        const msg = {
+            username: currentUser.username,
+            content: input,
+            recipientUsername: recipient ? recipient.username : null
+        };
+
         ws.current.send("/app/chat", {}, JSON.stringify(msg));
         setInput("");
     }
 
-    function handleTyping(){
-        if(ws.current?.connected && currentUser){
+    function handleTyping() {
+        if (ws.current?.connected && currentUser) {
             ws.current.send("/app/typing", {}, currentUser.username);
         }
     }
 
-    // --- Render ---
+    const displayedMessages = messages.filter(msg => {
+        if (!currentUser || !msg || !msg.user) return false;
+
+        if (!recipient) {
+            return !msg.recipient;
+        } else {
+            const isMyMsg = (msg.user.username === currentUser.username && 
+                            msg.recipient?.username === recipient.username);
+            const isTheirMsg = (msg.user.username === recipient.username && 
+                               msg.recipient?.username === currentUser.username);
+            return isMyMsg || isTheirMsg;
+        }
+    });
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-            <div className="bg-surface rounded-lg shadow-xl overflow-hidden flex flex-col w-[900px] h-[600px] border border-surface-muted">
-                
-                <ChatHeader 
-                    currentUser={currentUser} 
-                    randomUsername={randomUsername} 
-                    onLoginClick={onLoginClick} 
-                    onLogoutClick={onLogoutClick} 
-                />
+            <div className="bg-surface rounded-lg shadow-xl overflow-hidden flex flex-row w-[900px] h-[600px] border border-surface-muted">
 
-                <MessageList 
-                    messages={messages} 
-                    currentUser={currentUser} 
-                    chatEndRef={chatEndRef} 
-                />
-                
-                {/* Typing Indicator */}
-                <div className="h-6 px-4 text-xs text-text-muted italic animate-pulse">
-                    {typingUser && `${typingUser} is typing...`}
+                {currentUser && (
+                    <UserList
+                        messages={messages}
+                        contacts={contacts}
+                        selectedUser={recipient}
+                        currentUser={currentUser}
+                        
+                        onSelectUser={(user) => {
+                            setRecipient(user);
+                            if (user) addToContacts(user);
+                        }}
+                    />
+                )}
+
+                <div className="flex flex-col flex-1 h-full">
+                    <ChatHeader
+                        currentUser={currentUser}
+                        randomUsername={randomUsername}
+                        onLoginClick={onLoginClick}
+                        onLogoutClick={onLogoutClick}
+                        recipient={recipient}
+                    />
+
+                    <MessageList
+                        messages={displayedMessages} 
+                        currentUser={currentUser}
+                        chatEndRef={chatEndRef}
+                    />
+
+                    <div className="h-6 px-4 text-xs text-text-muted italic animate-pulse">
+                        {typingUser && `${typingUser} is typing...`}
+                    </div>
+
+                    <ChatInput
+                        input={input}
+                        setInput={setInput}
+                        sendMessage={sendMessage}
+                        handleTyping={handleTyping}
+                        currentUser={currentUser}
+                        onLoginClick={onLoginClick}
+                    />
                 </div>
-
-                <ChatInput 
-                    input={input} 
-                    setInput={setInput} 
-                    sendMessage={sendMessage} 
-                    handleTyping={handleTyping} 
-                    currentUser={currentUser} 
-                    onLoginClick={onLoginClick}
-                />
             </div>
         </div>
     );

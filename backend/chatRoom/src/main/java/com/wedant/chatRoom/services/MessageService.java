@@ -44,20 +44,25 @@ public class MessageService {
         return messageRepository.findAllByOrderByTimestampAsc();
     }
 
-    public Message createMessage(String username, String content){
+    public Message createMessage(String username, String content, String recipientUsername){
 
-        User user = userRepository.findByUsername(username)
+        User sender = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Username not found!"));
 
+        User recipient = null;
+        if(recipientUsername != null && !recipientUsername.isEmpty()){
+            recipient = userRepository.findByUsername(recipientUsername)
+                    .orElseThrow(() -> new UsernameNotFoundException(("Recipient username not found!")));
+        }
+
         var message = Message.builder()
-                .user(user)
+                .user(sender)
+                .recipient(recipient)
                 .timestamp(LocalDateTime.now())
                 .content(content)
                 .build();
 
-        messageRepository.save(message);
-
-        return message;
+        return messageRepository.save(message);
     }
 
     public Message editMessage(UUID messageId, String content){

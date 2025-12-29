@@ -38,4 +38,8 @@ public class Message {
     @JoinColumn(name = "user_id",nullable = false)
     private User user;
 
+    @ManyToOne
+    @JoinColumn(name = "recipient_id")//nullabel = true by default
+    private User recipient;
+
 }

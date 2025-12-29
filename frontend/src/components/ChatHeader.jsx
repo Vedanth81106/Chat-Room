@@ -1,19 +1,32 @@
-// components/ChatHeader.jsx
-export default function ChatHeader({ currentUser, randomUsername, onLoginClick, onLogoutClick }) {
+export default function ChatHeader({ currentUser, recipient, onLoginClick, onLogoutClick }) {
+    
+    const isDM = !!recipient;
+    
+    const title = isDM ? `Chat with ${recipient.username}` : "Global Chat Room";
+    const status = isDM ? "Private Message " : "Live - Everyone can see this ";
+
     return (
-        <div className="bg-surface p-4 text-text-primary flex justify-between items-center border-b border-surface-muted z-10">
+        <div className={`p-4 flex justify-between items-center border-b z-10 transition-colors duration-300 bg-indigo-50 border-indigo-100 ${
+            isDM 
+            ? "bg-surface border-surface-muted" 
+            : "bg-surface border-surface-muted"
+        }`}>
+            
+            {/* Left Side: Title & Status */}
             <div>
-                <h2 className="text-xl font-bold">Chat Room</h2>
-                <p className="text-text-muted text-sm">
-                    {currentUser 
-                        ? `Logged in as: ${currentUser.username}` 
-                        : `Browsing as: ${randomUsername}`}
+                <h2 className={`text-xl font-bold flex items-center gap-2 ${isDM ? "text-indigo-700" : "text-text-primary"}`}>
+                    {title}
+                </h2>
+                <p className={`text-sm ${isDM ? "text-indigo-400" : "text-text-muted"}`}>
+                    {status}
                 </p>
             </div>
             
+            {/* Right Side: Login/Logout Buttons */}
             <div className="flex items-center gap-4">
-                <div className="h-3 w-3 bg-accent rounded-full animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
-                
+                {/* Active Status Dot */}
+                <div className={`h-3 w-3 rounded-full animate-pulse ${isDM ? "bg-indigo-500" : "bg-green-500"}`}></div>
+
                 {currentUser ? (
                     <button 
                         onClick={onLogoutClick} 
