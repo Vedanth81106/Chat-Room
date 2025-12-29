@@ -21,4 +21,9 @@ public class MessageController {
     public List<Message> getChatHistory(){
         return messageService.getAllMessages();
     }
+
+    @GetMapping("/health")
+    public String healthCheck() {
+        return "OK";
+    }
 }
