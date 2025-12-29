@@ -59,7 +59,8 @@ public class SecurityConfiguration {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(List.of(
-            "https://chat-room-72jgn7gc4-vedanths-projects-31fd993b.vercel.app", 
+            "https://chat-room-72jgn7gc4-vedanths-projects-31fd993b.vercel.app",
+                "https://chat-room-teal.vercel.app",
             "http://localhost:5173", 
             "http://localhost:3000" 
         ));
