@@ -2,8 +2,18 @@ import { useEffect, useRef } from "react";
 
 function formatTime(timestamp) {
     if (!timestamp) return "";
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let timeString = timestamp;
+    if (!timestamp.endsWith("Z")) {
+        timeString = timestamp + "Z";
+    }
+
+    const date = new Date(timeString);
+    
+    return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit'
+    });
 }
 
 export default function MessageList({ messages, currentUser, chatEndRef }) {
