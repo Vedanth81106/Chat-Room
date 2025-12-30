@@ -22,8 +22,4 @@ public class MessageController {
         return messageService.getAllMessages();
     }
 
-    @GetMapping("/health")
-    public String healthCheck() {
-        return "OK";
-    }
 }
