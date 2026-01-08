@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,31 +18,35 @@ import java.util.UUID;
 public class MessageService {
 
     private final MessageRepository messageRepository;
-    private final UserService userService;
     private final UserRepository userRepository;
 
-    public Message getMessageById(UUID id){
-        return messageRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Could not fetch message!!"));
-    }
-    public List<Message> getMessagesByUserIdAndContent(UUID userId, String content){
-        return messageRepository.findByUserIdAndContentContaining(userId, content);
-    }
-
-    public List<Message> getMessagesByContent(String content){
-        return messageRepository.findByContentContaining(content);
-    }
-
-    public List<Message> getMessagesByUser(User user){
-        return messageRepository.findByUserOrderByTimestampAsc(user);
+    public List<Message> getChatHistory(LocalDateTime beforeTimestamp) {
+        List<Message> messages;
+        if (beforeTimestamp == null) {
+            messages = messageRepository.findTop50ByOrderByTimestampDesc();
+        } else {
+            messages = messageRepository.findTop50ByTimestampBeforeOrderByTimestampDesc(beforeTimestamp);
+        }
+        Collections.reverse(messages);
+        return messages;
     }
 
-    public List<Message> getMessagesByUserId(UUID userId){
-        return messageRepository.findByUserIdOrderByTimestampAsc(userId);
+    public List<Message> searchMessages(String content) {
+        // Fetch top 50 matches (Newest first)
+        List<Message> messages = messageRepository.findTop50ByContentContaining(content);
+
+        // Reverse to show in chronological order
+        Collections.reverse(messages);
+        return messages;
     }
 
-    public List<Message> getAllMessages(){
-        return messageRepository.findAllByOrderByTimestampAsc();
+    public List<Message> getMessagesByUserId(UUID userId) {
+        // Fetch top 50 messages from this user (Newest first)
+        List<Message> messages = messageRepository.findTop50ByUserIdOrderByTimestampDesc(userId);
+
+        // Reverse to show in chronological order
+        Collections.reverse(messages);
+        return messages;
     }
 
     public Message createMessage(String username, String content, String recipientUsername){

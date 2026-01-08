@@ -10,40 +10,59 @@ import UserList from "./UserList";
 export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }) {
     const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-    const randomUsername = useMemo(() => {
-        const adjectives = ["Quick", "Lazy", "Happy", "Sad", "Angry"];
-        const nouns = ["Fox", "Dog", "Cat", "Mouse", "Bear"];
-        const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-        const noun = nouns[Math.floor(Math.random() * nouns.length)];
-        return "Guest_" + adjective + noun + Math.floor(Math.random() * 1000);
-    }, []);
-
-    const currentUserRef = useRef(currentUser);
-    useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
-
     const [messages, setMessages] = useState([]);
-    const [input, setInput] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
     const [typingUser, setTypingUser] = useState("");
     const [recipient, setRecipient] = useState(null);
     const [contacts, setContacts] = useState([]);
 
     const chatEndRef = useRef(null);
     const ws = useRef(null);
+    const currentUserRef = useRef(currentUser);
 
-    useEffect(() => {
-        const fetchHistory = async () => {
-            const token = localStorage.getItem("token");
-            const headers = token ? { "Authorization": `Bearer ${token}` } : {};
-            try {
-                const res = await fetch(`${BASE_URL}/api/messages`, { headers });
-                const data = await res.json();
-                setMessages(data);
-            } catch (err) {
-                console.error(err);
+    useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+    // 1. Fetch History Function
+    async function fetchHistory(beforeTimestamp = null, userId = null) {
+        if (isLoading) return;
+
+        setIsLoading(true);
+        const token = localStorage.getItem("token");
+        const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+
+        try {
+            let url = userId 
+                ? `${BASE_URL}/api/messages/user/${userId}`
+                : `${BASE_URL}/api/messages`;
+
+            if (beforeTimestamp) {
+                url += `${url.includes('?') ? '&' : '?'}before=${beforeTimestamp}`;
             }
-        };
-        fetchHistory();
+            
+            const res = await fetch(url, { headers });
+            const data = await res.json();
 
+            if (data.length < 50) {
+                setHasMore(false);
+            } else {
+                setHasMore(true); 
+            }
+
+            if (beforeTimestamp) {
+                setMessages(prev => [...data, ...prev]);
+            } else {
+                setMessages(data);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 2. WebSocket Connection
+    useEffect(() => {
         const socket = new SockJS(`${BASE_URL}/ws`);
         const client = Stomp.over(socket);
         client.debug = () => { }; 
@@ -53,7 +72,6 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         const headers = token ? { "Authorization": `Bearer ${token}` } : {};
 
         client.connect(headers, function (frame) {
-            
             client.subscribe('/topic/messages', function (message) {
                 const recievedMessage = JSON.parse(message.body);
                 setMessages(prev => [...prev, recievedMessage]);
@@ -64,7 +82,7 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                 setMessages(prev => [...prev, recievedMessage]);
                 
                 if (recievedMessage.user.username !== currentUserRef.current?.username) {
-                   addToContacts(recievedMessage.user);
+                    addToContacts(recievedMessage.user);
                 }
             });
 
@@ -79,19 +97,24 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         return () => { if (client) client.disconnect(); };
     }, []);
 
+    // 3. Handle Recipient Change (Loads History)
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]); 
+        setMessages([]);
+        setHasMore(true);
 
+        if (recipient) {
+            fetchHistory(null, recipient.id);
+        } else {
+            fetchHistory(null, null);
+        }
+    }, [recipient]);
+
+    // 4. Contact Persistence
     useEffect(() => {
         if (currentUser) {
             const storageKey = `chat_contacts_${currentUser.username}`;
             const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                setContacts(JSON.parse(saved));
-            } else {
-                setContacts([]);
-            }
+            if (saved) setContacts(JSON.parse(saved));
         } else {
             setContacts([]);
         }
@@ -113,25 +136,24 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         });
     }
 
-    function sendMessage(e) {
-        if (e) e.preventDefault();
-        if (!currentUser || !ws.current || !input.trim()) return;
+    // 5. Send Message Logic
+    function sendMessage(content) {
+        if (!currentUser || !ws.current || !content.trim()) return;
 
         const msg = {
             username: currentUser.username,
-            content: input,
+            content: content,
             recipientUsername: recipient ? recipient.username : null
         };
 
         ws.current.send("/app/chat", {}, JSON.stringify(msg));
-        setInput("");
     }
 
-    function handleTyping() {
-        if (ws.current?.connected && currentUser) {
-            ws.current.send("/app/typing", {}, currentUser.username);
-        }
-    }
+    const randomUsername = useMemo(() => {
+        const adjectives = ["Quick", "Lazy", "Happy", "Sad", "Angry"];
+        const nouns = ["Fox", "Dog", "Cat", "Mouse", "Bear"];
+        return "Guest_" + adjectives[Math.floor(Math.random() * 5)] + nouns[Math.floor(Math.random() * 5)] + Math.floor(Math.random() * 1000);
+    }, []);
 
     const displayedMessages = messages.filter(msg => {
         if (!currentUser || !msg || !msg.user) return false;
@@ -157,7 +179,6 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                         contacts={contacts}
                         selectedUser={recipient}
                         currentUser={currentUser}
-                        
                         onSelectUser={(user) => {
                             setRecipient(user);
                             if (user) addToContacts(user);
@@ -178,6 +199,12 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                         messages={displayedMessages} 
                         currentUser={currentUser}
                         chatEndRef={chatEndRef}
+                        onLoadMore={() => {
+                            const oldestMessageTime = messages[0]?.timestamp;
+                            if (oldestMessageTime) {
+                                fetchHistory(oldestMessageTime, recipient?.id);
+                            }
+                        }}
                     />
 
                     <div className="h-6 px-4 text-xs text-text-muted italic animate-pulse">
@@ -185,10 +212,12 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                     </div>
 
                     <ChatInput
-                        input={input}
-                        setInput={setInput}
-                        sendMessage={sendMessage}
-                        handleTyping={handleTyping}
+                        onSendMessage={sendMessage}
+                        onTyping={() => {
+                            if (ws.current?.connected) {
+                                ws.current.send("/app/typing", {}, currentUser.username);
+                            }
+                        }}
                         currentUser={currentUser}
                         onLoginClick={onLoginClick}
                     />

@@ -1,36 +1,41 @@
-// components/ChatInput.jsx
-export default function ChatInput({ input, setInput, sendMessage, handleTyping, currentUser, onLoginClick }) {
+import { useState } from "react";
+
+export default function ChatInput({ onSendMessage, onTyping, currentUser, onLoginClick }) {
+
+    const [text, setText] = useState("");
+
+    function handleSubmit(e){
+        if(e) e.preventDefault(); // Stop page refresh
+        if(!text.trim()) return; // No empty messages
+
+        onSendMessage(text); // Send the text up
+        setText(""); // Clear local input
+    }
     
     function handleKeyDown(e) {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            sendMessage(e);
+            handleSubmit();
         }
     }
 
     if (!currentUser) {
         return (
-            <div className="p-4 bg-surface border-t border-surface-muted">
-                <div className="flex items-center justify-center p-3 bg-surface-muted rounded-full border border-surface-muted opacity-80 cursor-not-allowed">
-                    <p className="text-text-muted text-sm">
-                        <button onClick={onLoginClick} className="text-accent font-bold hover:underline cursor-pointer">
-                            Login
-                        </button>
-                        {" "} to join the conversation
-                    </p>
-                </div>
-            </div>
+            <button onClick={onLoginClick} className="flex items-center justify-center text-indigo-300 w-full
+                 p-3 bg-surface-muted border border-surface-muted opacity-80 cursor-pointer">
+                    Login to join the conversation!
+            </button>
         );
     }
 
     return (
         <div className="p-4 bg-surface border-t border-surface-muted">
-            <form onSubmit={sendMessage} className="flex items-center gap-2">
+            <form onSubmit={handleSubmit} className="flex items-center gap-2">
                 <textarea
-                    value={input}
+                    value={text}
                     onChange={(e) => {
-                        setInput(e.target.value);
-                        handleTyping();
+                        setText(e.target.value);
+                        if(onTyping) onTyping();
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
@@ -40,7 +45,7 @@ export default function ChatInput({ input, setInput, sendMessage, handleTyping, 
                 />
                 <button 
                     type="submit" 
-                    disabled={!input.trim()}
+                    disabled={!text.trim()}
                     className="bg-accent text-white p-3 rounded-full hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
