@@ -5,6 +5,8 @@ import com.wedant.chatRoom.models.User;
 import com.wedant.chatRoom.repositories.MessageRepository;
 import com.wedant.chatRoom.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable; // ✅ Correct Import
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -20,37 +22,51 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
 
+    // 1. GET GLOBAL CHAT (Fixed: No Private Messages)
     public List<Message> getChatHistory(LocalDateTime beforeTimestamp) {
         List<Message> messages;
+
         if (beforeTimestamp == null) {
-            messages = messageRepository.findTop50ByOrderByTimestampDesc();
+            // FIX: Only get Global messages (Recipient is Null)
+            messages = messageRepository.findTop50ByRecipientIsNullOrderByTimestampDesc();
         } else {
-            messages = messageRepository.findTop50ByTimestampBeforeOrderByTimestampDesc(beforeTimestamp);
+            messages = messageRepository.findTop50ByRecipientIsNullAndTimestampBeforeOrderByTimestampDesc(beforeTimestamp);
         }
+
         Collections.reverse(messages);
         return messages;
     }
 
-    public List<Message> searchMessages(String content) {
-        // Fetch top 50 matches (Newest first)
-        List<Message> messages = messageRepository.findTop50ByContentContaining(content);
+    // 2. GET PRIVATE CONVERSATION (Fixed: No AWT Print error)
+    public List<Message> getConversation(UUID senderId, UUID recipientID){
 
-        // Reverse to show in chronological order
+        Pageable limit = PageRequest.of(0, 50);
+
+        // FIX: Removed the incorrect (java.awt.print) cast
+        List<Message> messages = messageRepository.findConversation(senderId, recipientID, limit);
+
         Collections.reverse(messages);
         return messages;
     }
 
-    public List<Message> getMessagesByUserId(UUID userId) {
-        // Fetch top 50 messages from this user (Newest first)
-        List<Message> messages = messageRepository.findTop50ByUserIdOrderByTimestampDesc(userId);
+    // 3. SEARCH
+    public List<Message> searchMessages(String content, UUID currentUserId, UUID recipientId) {
+        List<Message> messages;
 
-        // Reverse to show in chronological order
+        if(recipientId == null){
+            // Global Search
+            messages = messageRepository.findByRecipientIsNullAndContentContainingIgnoreCase(content);
+        } else {
+            // Private Search
+            messages = messageRepository.searchPrivateMessages(currentUserId, recipientId, content);
+        }
+
         Collections.reverse(messages);
         return messages;
     }
 
+    // 4. CREATE MESSAGE
     public Message createMessage(String username, String content, String recipientUsername){
-
         User sender = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Username not found!"));
 
@@ -62,7 +78,7 @@ public class MessageService {
 
         var message = Message.builder()
                 .user(sender)
-                .recipient(recipient)
+                .recipient(recipient) // Can be null (Global) or User (Private)
                 .timestamp(LocalDateTime.now())
                 .content(content)
                 .build();
@@ -70,22 +86,19 @@ public class MessageService {
         return messageRepository.save(message);
     }
 
+    // ... edit and delete methods can stay the same ...
     public Message editMessage(UUID messageId, String content){
-
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("Could not find message!!"));
-
         message.setContent(content);
         message.setTimestamp(LocalDateTime.now());
-        messageRepository.save(message);
-
-        return message;
+        return messageRepository.save(message);
     }
 
     public void deleteMessage(UUID messageId){
-
-        Message message = messageRepository.findById(messageId)
-                        .orElseThrow(() -> new RuntimeException("Could not find message!"));
-        messageRepository.delete(message);
+        if (!messageRepository.existsById(messageId)) {
+            throw new RuntimeException("Could not find message!");
+        }
+        messageRepository.deleteById(messageId);
     }
 }

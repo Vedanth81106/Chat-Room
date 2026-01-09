@@ -45,7 +45,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers(HttpMethod.GET,"/api/messages").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/messages/**").permitAll()
                         .anyRequest().authenticated())
 
                 .sessionManagement(session ->

@@ -16,19 +16,27 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
     const [typingUser, setTypingUser] = useState("");
     const [recipient, setRecipient] = useState(null);
     const [contacts, setContacts] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     const chatEndRef = useRef(null);
     const ws = useRef(null);
     const currentUserRef = useRef(currentUser);
 
+    // keeps the ref updated with current user for websocket callbacks
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
-    // 1. Fetch History Function
+    // helper function to clean up the token (removes extra quotes)
+    function getToken() {
+        const raw = localStorage.getItem("token");
+        return raw ? raw.replace(/^"|"$/g, '') : null;
+    }
+
+    // 1. fetch history function
     async function fetchHistory(beforeTimestamp = null, userId = null) {
         if (isLoading) return;
 
         setIsLoading(true);
-        const token = localStorage.getItem("token");
+        const token = getToken();
         const headers = token ? { "Authorization": `Bearer ${token}` } : {};
 
         try {
@@ -36,24 +44,30 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                 ? `${BASE_URL}/api/messages/user/${userId}`
                 : `${BASE_URL}/api/messages`;
 
+            // adds timestamp param if scrolling up, encodes it to handle spaces
             if (beforeTimestamp) {
-                url += `${url.includes('?') ? '&' : '?'}before=${beforeTimestamp}`;
+                url += `${url.includes('?') ? '&' : '?'}before=${encodeURIComponent(beforeTimestamp)}`;
             }
             
             const res = await fetch(url, { headers });
+            
+            // stops execution if permission denied or error occurs
+            if (!res.ok) {
+                console.warn(`Failed to fetch history. Status: ${res.status}`);
+                setIsLoading(false);
+                return;
+            }
+
             const data = await res.json();
 
-            if (data.length < 50) {
-                setHasMore(false);
-            } else {
-                setHasMore(true); 
-            }
+            // determines if there are more messages to load
+            if (data.length < 50) setHasMore(false);
+            else setHasMore(true); 
 
-            if (beforeTimestamp) {
-                setMessages(prev => [...data, ...prev]);
-            } else {
-                setMessages(data);
-            }
+            // prepends old messages or sets initial load
+            if (beforeTimestamp) setMessages(prev => [...data, ...prev]);
+            else setMessages(data);
+            
         } catch (err) {
             console.error(err);
         } finally {
@@ -61,31 +75,43 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         }
     };
 
-    // 2. WebSocket Connection
+    // 2. websocket connection
     useEffect(() => {
         const socket = new SockJS(`${BASE_URL}/ws`);
         const client = Stomp.over(socket);
         client.debug = () => { }; 
         ws.current = client;
 
-        const token = localStorage.getItem("token");
+        const token = getToken();
         const headers = token ? { "Authorization": `Bearer ${token}` } : {};
 
         client.connect(headers, function (frame) {
+            
+            // subscribes to global messages
             client.subscribe('/topic/messages', function (message) {
                 const recievedMessage = JSON.parse(message.body);
-                setMessages(prev => [...prev, recievedMessage]);
+                setMessages(prev => {
+                    // ignores live updates if user is currently searching
+                    if (isSearching) return prev; 
+                    return [...prev, recievedMessage];
+                });
             });
 
+            // subscribes to private messages
             client.subscribe('/user/queue/messages', function (message) {
                 const recievedMessage = JSON.parse(message.body);
-                setMessages(prev => [...prev, recievedMessage]);
+                setMessages(prev => {
+                    if (isSearching) return prev;
+                    return [...prev, recievedMessage];
+                });
                 
+                // adds sender to contacts list if it's a new person
                 if (recievedMessage.user.username !== currentUserRef.current?.username) {
                     addToContacts(recievedMessage.user);
                 }
             });
 
+            // subscribes to typing indicators
             client.subscribe('/topic/typing', function (message) {
                 const username = message.body;
                 if (currentUserRef.current && username === currentUserRef.current.username) return;
@@ -95,21 +121,20 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         });
 
         return () => { if (client) client.disconnect(); };
-    }, []);
+    }, [isSearching]); // reconnects if search state changes to ensure correct logic
 
-    // 3. Handle Recipient Change (Loads History)
+    // 3. handle recipient change
     useEffect(() => {
-        setMessages([]);
-        setHasMore(true);
-
-        if (recipient) {
-            fetchHistory(null, recipient.id);
-        } else {
-            fetchHistory(null, null);
+        // only fetches history if not in search mode
+        if (!isSearching) {
+            setMessages([]);
+            setHasMore(true);
+            if (recipient) fetchHistory(null, recipient.id);
+            else fetchHistory(null, null);
         }
     }, [recipient]);
 
-    // 4. Contact Persistence
+    // 4. contact persistence
     useEffect(() => {
         if (currentUser) {
             const storageKey = `chat_contacts_${currentUser.username}`;
@@ -136,7 +161,7 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         });
     }
 
-    // 5. Send Message Logic
+    // 5. send message logic
     function sendMessage(content) {
         if (!currentUser || !ws.current || !content.trim()) return;
 
@@ -145,17 +170,53 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
             content: content,
             recipientUsername: recipient ? recipient.username : null
         };
-
         ws.current.send("/app/chat", {}, JSON.stringify(msg));
     }
 
+    // 6. search function
+    async function handleSearch(query){
+        if(!query.trim()) return;
+
+        setIsLoading(true);
+        setIsSearching(true);
+        setHasMore(false); // disables scrolling up while searching
+
+        try{
+            const token = getToken();
+            const headers = token ? {"Authorization": `Bearer ${token}` } : {};
+
+            let url = `${BASE_URL}/api/messages/search?content=${encodeURIComponent(query)}`;
+            if(recipient){
+                url += `&recipientId=${recipient.id}`;
+            }
+            const res = await fetch(url, {headers});
+            const data = await res.json();
+            setMessages(data);
+        }catch(err){
+            console.error("Search failed", err);
+        }finally{
+            setIsLoading(false);
+        }
+    }
+
+    // exits search mode and reloads normal history
+    function exitSearch(){
+        setIsSearching(false);
+        setMessages([]);
+        if(recipient) fetchHistory(null, recipient.id);
+        else fetchHistory(null,null);
+    }
+
+    // generates a random name for guests
     const randomUsername = useMemo(() => {
         const adjectives = ["Quick", "Lazy", "Happy", "Sad", "Angry"];
         const nouns = ["Fox", "Dog", "Cat", "Mouse", "Bear"];
         return "Guest_" + adjectives[Math.floor(Math.random() * 5)] + nouns[Math.floor(Math.random() * 5)] + Math.floor(Math.random() * 1000);
     }, []);
 
+    // filters messages to only show relevant ones (global vs private)
     const displayedMessages = messages.filter(msg => {
+        if (isSearching) return true; // shows all results during search
         if (!currentUser || !msg || !msg.user) return false;
 
         if (!recipient) {
@@ -180,8 +241,11 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                         selectedUser={recipient}
                         currentUser={currentUser}
                         onSelectUser={(user) => {
+                            setIsSearching(false);
+                            setMessages([]);
                             setRecipient(user);
-                            if (user) addToContacts(user);
+                            if(user) addToContacts(user);
+        
                         }}
                     />
                 )}
@@ -193,16 +257,31 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                         onLoginClick={onLoginClick}
                         onLogoutClick={onLogoutClick}
                         recipient={recipient}
+                        isSearching={isSearching}
+                        onToggleSearch={(isOpen) => {
+                            if(!isOpen) exitSearch();
+                            else setIsSearching(true);
+                        }}
+                        onSearchSubmit={handleSearch}
                     />
+
+                    {isSearching && (
+                        <div className="bg-yellow-100 text-yellow-800 text-xs text-center py-1">
+                            Search Results
+                        </div>
+                    )}
 
                     <MessageList
                         messages={displayedMessages} 
                         currentUser={currentUser}
                         chatEndRef={chatEndRef}
                         onLoadMore={() => {
-                            const oldestMessageTime = messages[0]?.timestamp;
-                            if (oldestMessageTime) {
-                                fetchHistory(oldestMessageTime, recipient?.id);
+                            // only loads more history if we are not searching
+                            if (!isSearching) {
+                                const oldestMessageTime = messages[0]?.timestamp;
+                                if (oldestMessageTime) {
+                                    fetchHistory(oldestMessageTime, recipient?.id);
+                                }
                             }
                         }}
                     />
@@ -211,16 +290,22 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
                         {typingUser && `${typingUser} is typing...`}
                     </div>
 
-                    <ChatInput
-                        onSendMessage={sendMessage}
-                        onTyping={() => {
-                            if (ws.current?.connected) {
-                                ws.current.send("/app/typing", {}, currentUser.username);
-                            }
-                        }}
-                        currentUser={currentUser}
-                        onLoginClick={onLoginClick}
-                    />
+                    {isSearching ? (
+                        <div className="p-4 text-center text-gray-500 border-t">
+                            Close search to continue chatting
+                        </div>
+                    ) : (
+                        <ChatInput
+                            onSendMessage={sendMessage}
+                            onTyping={() => {
+                                if (ws.current?.connected) {
+                                    ws.current.send("/app/typing", {}, currentUser.username);
+                                }
+                            }}
+                            currentUser={currentUser}
+                            onLoginClick={onLoginClick}
+                        />
+                    )}
                 </div>
             </div>
         </div>
