@@ -1,6 +1,6 @@
 // components/UserSearch.jsx
 import { useEffect, useState } from "react";
-import {searchUsers} from '../services/UserService'
+import {searchUsers} from '../utils/UserService'
 
 export default function UserSearch({ onSelectUser }) {
     const [query, setQuery] = useState("");
