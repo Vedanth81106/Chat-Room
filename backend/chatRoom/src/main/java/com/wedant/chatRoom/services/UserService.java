@@ -1,12 +1,11 @@
 package com.wedant.chatRoom.services;
 
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.User;
 import com.wedant.chatRoom.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor

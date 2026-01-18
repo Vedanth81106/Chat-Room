@@ -70,17 +70,38 @@ export default function MessageList({ messages, currentUser, chatEndRef, onLoadM
                 const isMe = currentUser && msg.user && (msg.user.username === currentUser.username);
                 const senderName = msg.user ? msg.user.username : "Unknown";
 
+                // message statusessss
+                const isPending = msg.status === 'PENDING';
+                const isRejected = msg.status === 'REJECTED';
+
                 return (
-                    <div key={index} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                        <span className="text-xs text-text-muted mb-1 px-1">
+                    <div key={msg.id || index} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                        <span className="text-xs text-text-muted mb-1 px-1 flex items-center gap-1">
                             {isMe ? "You" : senderName}
+                            {/* Show the timer icon if pending */}
+                            {isPending && <span className="animate-spin text-[10px]">⏳</span>}
                         </span>
-                        <div className={`max-w-[80%] px-4 py-2 rounded-2xl shadow-sm text-sm break-words whitespace-pre-wrap ${
+
+                        <div className={`relative max-w-[80%] px-4 py-2 rounded-2xl shadow-sm text-sm break-words whitespace-pre-wrap transition-all duration-300 ${
                             isMe 
-                            ? "bg-accent text-white rounded-tr-none" 
-                            : "bg-surface-muted text-text-primary border border-surface-muted rounded-tl-none"
-                        }`}>
-                            {msg.content}
+                                ? (isRejected ? "bg-red-600 text-white" : "bg-accent text-white") 
+                                : (isRejected ? "bg-red-100 text-red-800 border-red-300" : "bg-surface-muted text-text-primary")
+                        } ${isMe ? "rounded-tr-none" : "rounded-tl-none"}`}>
+                            
+                            {/* The Message Text with optional Blur */}
+                            <p className={`${isRejected ? "blur-[4px] select-none" : ""}`}>
+                                {msg.content}
+                            </p>
+
+                            {/* Optional: Overlay text for rejected messages */}
+                            {isRejected && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest bg-black/20 px-2 rounded">
+                                        Sensitive Content
+                                    </span>
+                                </div>
+                            )}
+
                             <div className={`text-[10px] mt-1 text-right ${isMe ? "text-blue-100" : "text-gray-400"}`}>
                                 {formatTime(msg.timestamp)}
                             </div>

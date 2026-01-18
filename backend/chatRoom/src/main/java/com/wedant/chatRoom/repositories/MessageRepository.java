@@ -1,6 +1,6 @@
 package com.wedant.chatRoom.repositories;
 
-import com.wedant.chatRoom.models.Message;
+import com.wedant.chatRoom.modelsandenums.Message;
 import org.springframework.data.domain.Pageable; // ✅ CORRECT IMPORT
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

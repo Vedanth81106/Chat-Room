@@ -1,7 +1,7 @@
 package com.wedant.chatRoom.controllers;
 
-import com.wedant.chatRoom.models.Message;
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.Message;
+import com.wedant.chatRoom.modelsandenums.User;
 import com.wedant.chatRoom.services.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;

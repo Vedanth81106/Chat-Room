@@ -1,6 +1,6 @@
 package com.wedant.chatRoom.repositories;
 
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

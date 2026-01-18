@@ -1,4 +1,4 @@
-package com.wedant.chatRoom.models;
+package com.wedant.chatRoom.modelsandenums;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;

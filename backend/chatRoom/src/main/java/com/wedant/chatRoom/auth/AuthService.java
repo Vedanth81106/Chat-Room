@@ -1,7 +1,7 @@
 package com.wedant.chatRoom.auth;
 
-import com.wedant.chatRoom.models.Role;
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.Role;
+import com.wedant.chatRoom.modelsandenums.User;
 import com.wedant.chatRoom.repositories.UserRepository;
 import com.wedant.chatRoom.security.JwtService;
 import lombok.RequiredArgsConstructor;

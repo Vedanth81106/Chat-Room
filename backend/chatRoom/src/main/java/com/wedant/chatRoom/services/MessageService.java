@@ -1,7 +1,8 @@
 package com.wedant.chatRoom.services;
 
-import com.wedant.chatRoom.models.Message;
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.Message;
+import com.wedant.chatRoom.modelsandenums.MessageStatus;
+import com.wedant.chatRoom.modelsandenums.User;
 import com.wedant.chatRoom.repositories.MessageRepository;
 import com.wedant.chatRoom.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class MessageService {
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final ModerationService moderationService;
 
     // 1. GET GLOBAL CHAT (Fixed: No Private Messages)
     public List<Message> getChatHistory(LocalDateTime beforeTimestamp) {
@@ -83,10 +85,27 @@ public class MessageService {
                 .content(content)
                 .build();
 
+        String filtered = moderationService.filterMessage(content);
+        
+        if(filtered.contains("****")){
+            message.setStatus(MessageStatus.REJECTED);
+        }else if(content.trim().split("\\s+").length <= 2){
+            message.setStatus(MessageStatus.APPROVED);
+        }else{
+            message.setStatus(MessageStatus.PENDING);
+        }
+
         return messageRepository.save(message);
     }
 
-    // ... edit and delete methods can stay the same ...
+    public void updateMessageStatus(UUID messageId, MessageStatus status){
+        messageRepository.findById(messageId).ifPresent(msg -> {
+            msg.setStatus(status);
+            messageRepository.save(msg);
+        });
+    }
+
+    // edit and delete methods
     public Message editMessage(UUID messageId, String content){
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("Could not find message!!"));

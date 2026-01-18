@@ -18,7 +18,7 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
     const chatEndRef = useRef(null);
     const currentUserRef = useRef(currentUser);
 
-    // keeps the ref updated with current user for websocket callbacks
+    // keeps the ref updated with current user for websocket callbackszaa
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
     function handleTyping(username) {
@@ -53,7 +53,12 @@ export default function WsComponent({ currentUser, onLoginClick, onLogoutClick }
         onGlobalMessage: (msg) => setMessages(prev => [...prev,msg]),
         onPrivateMessage : (msg) => setMessages(prev => [...prev,msg]),
         addToContacts: (user) => addToContacts(user),
-        onTyping: handleTyping
+        onTyping: handleTyping,
+        onStatusUpdate : (update) => {
+            setMessages(prev => prev.map(msg => 
+                msg.id === update.messageId ? {...msg, status : update.status} : msg
+            ));
+        }
     })
 
     // handle recipient change

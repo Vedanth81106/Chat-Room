@@ -1,6 +1,6 @@
 package com.wedant.chatRoom.auth;
 
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

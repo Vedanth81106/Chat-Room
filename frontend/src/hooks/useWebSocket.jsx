@@ -11,7 +11,8 @@ export default function useWebSocket({
      onGlobalMessage,  
      onPrivateMessage,
      addToContacts,
-     onTyping
+     onTyping,
+     onStatusUpdate
 }) {
 
     const ws = useRef(null);
@@ -55,6 +56,23 @@ export default function useWebSocket({
                 if (receivedMessage.user.username !== currentUserRef.current?.username) {
                     // Safety check
                     if (addToContacts) addToContacts(receivedMessage.user);
+                }
+            });
+
+            // Subscribes to status
+            client.subscribe('/topic/status', function(message) {
+                if (message.body) {
+                    const statusUpdate = JSON.parse(message.body);
+                    // statusUpdate will look like: { messageId: "...", status: "REJECTED" }
+                    if (onStatusUpdate) onStatusUpdate(statusUpdate);
+                }
+            });
+
+            // SUbscirbes to private status
+            client.subscribe('/user/queue/status', function(message) {
+                if (message.body) {
+                    const statusUpdate = JSON.parse(message.body);
+                    if (onStatusUpdate) onStatusUpdate(statusUpdate);
                 }
             });
 

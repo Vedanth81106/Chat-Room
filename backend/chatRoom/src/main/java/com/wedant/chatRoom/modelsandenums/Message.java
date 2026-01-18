@@ -1,4 +1,4 @@
-package com.wedant.chatRoom.models;
+package com.wedant.chatRoom.modelsandenums;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
@@ -41,5 +41,7 @@ public class Message {
     @ManyToOne
     @JoinColumn(name = "recipient_id")//nullabel = true by default
     private User recipient;
+
+    private MessageStatus status = MessageStatus.PENDING;
 
 }

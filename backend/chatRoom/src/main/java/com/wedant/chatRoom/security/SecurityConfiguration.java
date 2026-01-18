@@ -1,6 +1,6 @@
 package com.wedant.chatRoom.security;
 
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.User;
 import com.wedant.chatRoom.repositories.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Bean;

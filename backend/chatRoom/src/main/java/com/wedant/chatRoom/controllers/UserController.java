@@ -1,6 +1,6 @@
 package com.wedant.chatRoom.controllers;
 
-import com.wedant.chatRoom.models.User;
+import com.wedant.chatRoom.modelsandenums.User;
 import com.wedant.chatRoom.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
